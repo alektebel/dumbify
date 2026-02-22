@@ -44,7 +44,19 @@ Pre-configured productive apps include:
 
 ## Installation
 
-### Prerequisites
+### Quick Install (Automated Builds)
+
+**Download Pre-Built APK:**
+1. Go to [Releases](https://github.com/alektebel/dumbify/releases)
+2. Download the latest `app-debug.apk`
+3. Enable "Install from Unknown Sources" in Android settings
+4. Install the APK on your device
+
+**Note**: APKs are automatically built on every commit via GitHub Actions.
+
+### Build from Source
+
+#### Prerequisites
 - Android 8.0 (API 26) or higher
 - Android Studio Arctic Fox or newer (for development)
 - Java 17
