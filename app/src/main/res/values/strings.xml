@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Dumbify</string>
+    <string name="settings">Settings</string>
+    <string name="start_monitoring">Start Monitoring</string>
+    <string name="stop_monitoring">Stop Monitoring</string>
+    <string name="enable_dns_filter">Enable DNS Filter</string>
+    <string name="disable_dns_filter">Disable DNS Filter</string>
+    <string name="configure_apps">Configure Apps</string>
+    <string name="usage_stats">Usage Statistics</string>
+    <string name="time_limit_warning">You\'ve been using %s for %d minutes. Consider taking a break.</string>
+    <string name="closing_app_warning">Time limit exceeded. Closing %s now.</string>
+    <string name="productive_apps">Productive Apps</string>
+    <string name="time_wasting_apps">Time-Wasting Apps</string>
+    <string name="blocked_sites">Blocked Sites</string>
+    <string name="ai_analysis">AI Analysis</string>
+    <string name="daily_report">Daily Report</string>
+    <string name="enable_accessibility">Enable Accessibility Service</string>
+    <string name="enable_usage_stats">Enable Usage Stats Permission</string>
+    <string name="permissions_required">Required Permissions</string>
+    <string name="monitoring_service_notification_title">Dumbify Active</string>
+    <string name="monitoring_service_notification_text">Monitoring your app usage for productivity</string>
+    <string name="dns_filter_active">DNS Filter Active</string>
+    <string name="dns_filter_description">Blocking access to unproductive sites</string>
+    <string name="time_limit_minutes">Time Limit (minutes)</string>
+    <string name="warning_threshold_minutes">Warning Threshold (minutes)</string>
+    <string name="add_productive_app">Add Productive App</string>
+    <string name="social_media_limit_title">Social Media Time Limit</string>
+    <string name="social_media_limit_summary">Maximum daily usage for social apps</string>
+</resources>
