@@ -46,8 +46,6 @@ class AppConfigRepository(context: Context) {
     
     companion object {
         private const val TAG = "AppConfigRepository"
-    
-    companion object {
         private const val KEY_APP_CONFIGS = "app_configs"
         private const val KEY_BLOCKED_DOMAINS = "blocked_domains"
         private const val KEY_DAILY_SOCIAL_LIMIT = "daily_social_limit"
