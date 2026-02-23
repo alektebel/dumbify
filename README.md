@@ -11,12 +11,23 @@ A powerful Android app that helps you stay focused and productive by intelligent
 - Warning notifications when approaching limits
 - Automatic app closing when limits are exceeded
 
-### 2. AI-Powered Analysis
-- Uses Google's Gemini AI for intelligent usage pattern analysis
+### 2. AI-Powered Analysis (Multiple Providers)
+**Choose your AI provider:**
+- **Google Gemini** - Free tier available, easy API key setup
+- **GitHub Copilot Pro** - Access GPT-4o, Claude 3.5 Sonnet, Llama 3.1, and more
+
+**Features:**
 - Real-time insights about your app usage behavior
 - Personalized recommendations to improve focus
 - Daily summary reports with actionable suggestions
 - Context-aware warnings based on your patterns
+- Switch between AI providers anytime in settings
+
+**Supported Models (GitHub Copilot):**
+- GPT-4o & GPT-4o-mini (OpenAI)
+- Claude 3.5 Sonnet (Anthropic)
+- Meta Llama 3.1 (Meta)
+- o1-preview & o1-mini (OpenAI reasoning models)
 
 ### 3. DNS-Based Content Filtering
 - Built-in VPN service for DNS filtering
@@ -103,11 +114,23 @@ If you have a pre-built APK:
    - Accept the VPN connection request
    - This creates a local VPN to filter DNS requests
 
-4. **Set Up AI Features (Optional)**
+4. **Set Up AI Features**
+   
+   **Option A: Google Gemini (Free)**
    - Get a free API key from [Google AI Studio](https://ai.google.dev)
    - Go to Settings in Dumbify
+   - Select "Google Gemini" as AI provider
    - Enter your Gemini API key
    - Save settings
+   
+   **Option B: GitHub Copilot Pro (Recommended)**
+   - Requires [GitHub Copilot Pro subscription](https://github.com/features/copilot) ($10/month)
+   - Follow the detailed setup guide: [GITHUB_OAUTH_SETUP.md](GITHUB_OAUTH_SETUP.md)
+   - Go to Settings in Dumbify
+   - Select "GitHub Copilot Pro" as AI provider
+   - Click "Connect GitHub Account"
+   - Authorize in your browser
+   - Get access to: GPT-4o, Claude 3.5 Sonnet, Llama 3.1, o1-preview, and more!
 
 ### App Configuration
 
@@ -321,6 +344,16 @@ Contributions are welcome! Please:
 - [ ] Offline AI using TensorFlow Lite
 - [ ] Dark mode theme
 - [ ] Multi-user profiles
+- [x] GitHub OAuth integration for Copilot Pro
+- [x] Multiple AI provider support
+- [x] Automated APK builds via GitHub Actions
+
+## Documentation
+
+- **[GITHUB_OAUTH_SETUP.md](GITHUB_OAUTH_SETUP.md)** - Complete guide for setting up GitHub OAuth and accessing Copilot Pro models
+- **[BUILD_APK.md](BUILD_APK.md)** - Instructions for building the APK from source
+- **[APK_SETUP_SUMMARY.md](APK_SETUP_SUMMARY.md)** - Overview of automated build and release process
+- **[releases/README.md](releases/README.md)** - Information about APK releases and downloads
 
 ## License
 

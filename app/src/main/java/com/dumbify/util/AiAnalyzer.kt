@@ -1,35 +1,40 @@
 package com.dumbify.util
 
 import android.content.Context
+import android.util.Log
+import com.dumbify.api.AiProviderFactory
 import com.dumbify.model.AppUsageData
 import com.dumbify.model.DailyStats
-import com.google.ai.client.generativeai.GenerativeModel
+import com.dumbify.repository.AppConfigRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class AiAnalyzer(private val context: Context) {
     
-    // Note: Users need to add their own API key in a secure manner
-    // This should be stored in local.properties or secure storage
-    private val apiKey = getApiKey()
+    private val repository = AppConfigRepository(context)
     
-    private val model by lazy {
-        GenerativeModel(
-            modelName = "gemini-pro",
-            apiKey = apiKey
-        )
+    // Get the appropriate AI provider based on user selection
+    private val provider by lazy {
+        AiProviderFactory.createProvider(context)
     }
     
-    private fun getApiKey(): String {
-        // Try to get from resources or return empty
-        // Users should add their API key
-        val prefs = context.getSharedPreferences("dumbify_prefs", Context.MODE_PRIVATE)
-        return prefs.getString("gemini_api_key", "") ?: ""
+    companion object {
+        private const val TAG = "AiAnalyzer"
     }
     
+    /**
+     * Sets the Gemini API key (for backwards compatibility)
+     */
     fun setApiKey(key: String) {
         val prefs = context.getSharedPreferences("dumbify_prefs", Context.MODE_PRIVATE)
         prefs.edit().putString("gemini_api_key", key).apply()
+    }
+    
+    /**
+     * Checks if any AI provider is configured
+     */
+    fun isConfigured(): Boolean {
+        return provider.isConfigured()
     }
     
     suspend fun analyzeUsagePattern(
@@ -37,16 +42,17 @@ class AiAnalyzer(private val context: Context) {
         usageData: AppUsageData,
         recentSessions: List<String>
     ): String {
-        if (apiKey.isEmpty()) {
-            return "AI analysis disabled. Please configure API key in settings."
+        if (!provider.isConfigured()) {
+            return "AI analysis disabled. Please configure AI provider in settings."
         }
         
         return withContext(Dispatchers.IO) {
             try {
                 val prompt = buildUsagePrompt(currentApp, usageData, recentSessions)
-                val response = model.generateContent(prompt)
-                response.text ?: "Unable to analyze usage pattern"
+                val systemPrompt = "You are a digital wellbeing assistant. Provide brief, actionable feedback to help users maintain healthy digital habits."
+                provider.complete(prompt, systemPrompt)
             } catch (e: Exception) {
+                Log.e(TAG, "AI analysis failed", e)
                 "AI analysis unavailable: ${e.message}"
             }
         }
@@ -59,7 +65,7 @@ class AiAnalyzer(private val context: Context) {
     ): String {
         val usageMinutes = usageData.usageTimeMillis / 60000
         return """
-            You are a digital wellbeing assistant. Analyze this app usage and provide brief, actionable feedback.
+            Analyze this app usage and provide brief, actionable feedback.
             
             Current App: $currentApp
             Time spent today: $usageMinutes minutes
@@ -76,16 +82,17 @@ class AiAnalyzer(private val context: Context) {
     }
     
     suspend fun generateDailyInsight(stats: DailyStats): String {
-        if (apiKey.isEmpty()) {
+        if (!provider.isConfigured()) {
             return generateBasicInsight(stats)
         }
         
         return withContext(Dispatchers.IO) {
             try {
                 val prompt = buildDailyPrompt(stats)
-                val response = model.generateContent(prompt)
-                response.text ?: generateBasicInsight(stats)
+                val systemPrompt = "You are a digital wellbeing coach providing daily insights."
+                provider.complete(prompt, systemPrompt)
             } catch (e: Exception) {
+                Log.e(TAG, "Failed to generate daily insight", e)
                 generateBasicInsight(stats)
             }
         }
@@ -138,7 +145,7 @@ class AiAnalyzer(private val context: Context) {
         
         if (!shouldWarn) return Pair(false, "")
         
-        val message = if (apiKey.isNotEmpty()) {
+        val message = if (provider.isConfigured()) {
             try {
                 val prompt = """
                     The user has been on $appName for $currentUsageMinutes minutes (threshold: $threshold).
@@ -146,10 +153,13 @@ class AiAnalyzer(private val context: Context) {
                     Be supportive but direct. No emojis.
                 """.trimIndent()
                 
+                val systemPrompt = "You are a supportive digital wellbeing assistant."
+                
                 withContext(Dispatchers.IO) {
-                    model.generateContent(prompt).text ?: getDefaultWarning(appName, currentUsageMinutes)
+                    provider.complete(prompt, systemPrompt)
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "Failed to generate warning", e)
                 getDefaultWarning(appName, currentUsageMinutes)
             }
         } else {

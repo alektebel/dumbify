@@ -1,0 +1,95 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+    
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+    
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+    
+    - name: Accept Android SDK licenses
+      run: yes | sdkmanager --licenses || true
+    
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug --stacktrace
+    
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: dumbify-debug-apk
+        path: app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
+    
+    - name: Get version from tag
+      if: startsWith(github.ref, 'refs/tags/v')
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    
+    - name: Create GitHub Release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: app/build/outputs/apk/debug/app-debug.apk
+        name: Release ${{ steps.get_version.outputs.VERSION }}
+        draft: false
+        prerelease: false
+        body: |
+          ## Dumbify Release ${{ steps.get_version.outputs.VERSION }}
+          
+          ### Features
+          - Digital wellbeing monitoring
+          - AI-powered usage insights
+          - GitHub Copilot Pro integration
+          - DNS-based content filtering
+          
+          ### Installation
+          1. Download `app-debug.apk`
+          2. Enable "Install from Unknown Sources" on your Android device
+          3. Install the APK
+          4. Grant required permissions
+          
+          ### Setup
+          - For GitHub OAuth: See [GITHUB_OAUTH_SETUP.md](https://github.com/${{ github.repository }}/blob/main/GITHUB_OAUTH_SETUP.md)
+          - For general usage: See [README.md](https://github.com/${{ github.repository }}/blob/main/README.md)
+          
+          ### Requirements
+          - Android 8.0 (API 26) or higher
+          - GitHub Copilot Pro subscription (for AI features)
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Comment on PR with APK
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '✅ APK built successfully! Download it from the artifacts section above.'
+          })

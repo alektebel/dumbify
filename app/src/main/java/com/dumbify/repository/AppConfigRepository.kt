@@ -10,7 +10,8 @@ import com.google.gson.reflect.TypeToken
 
 class AppConfigRepository(context: Context) {
     
-    private val prefs: SharedPreferences = 
+    // Make prefs internal so AiProvider can access it
+    internal val prefs: SharedPreferences = 
         context.getSharedPreferences("dumbify_prefs", Context.MODE_PRIVATE)
     private val gson = Gson()
     
@@ -20,6 +21,12 @@ class AppConfigRepository(context: Context) {
         private const val KEY_DAILY_SOCIAL_LIMIT = "daily_social_limit"
         private const val KEY_AI_ENABLED = "ai_enabled"
         private const val KEY_DNS_ENABLED = "dns_enabled"
+        
+        // GitHub OAuth keys
+        private const val KEY_GITHUB_ACCESS_TOKEN = "github_access_token"
+        private const val KEY_GITHUB_TOKEN_SCOPE = "github_token_scope"
+        private const val KEY_OAUTH_STATE = "oauth_state"
+        private const val KEY_SELECTED_AI_PROVIDER = "selected_ai_provider" // "gemini" or "github"
         
         // Default productive apps
         val DEFAULT_PRODUCTIVE_APPS = listOf(
@@ -157,4 +164,39 @@ class AppConfigRepository(context: Context) {
     var isDnsFilterEnabled: Boolean
         get() = prefs.getBoolean(KEY_DNS_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_DNS_ENABLED, value).apply()
+    
+    // GitHub OAuth token storage
+    var githubAccessToken: String?
+        get() = prefs.getString(KEY_GITHUB_ACCESS_TOKEN, null)
+        set(value) {
+            if (value == null) {
+                prefs.edit().remove(KEY_GITHUB_ACCESS_TOKEN).apply()
+            } else {
+                prefs.edit().putString(KEY_GITHUB_ACCESS_TOKEN, value).apply()
+            }
+        }
+    
+    var githubTokenScope: String?
+        get() = prefs.getString(KEY_GITHUB_TOKEN_SCOPE, null)
+        set(value) {
+            if (value == null) {
+                prefs.edit().remove(KEY_GITHUB_TOKEN_SCOPE).apply()
+            } else {
+                prefs.edit().putString(KEY_GITHUB_TOKEN_SCOPE, value).apply()
+            }
+        }
+    
+    var oauthState: String?
+        get() = prefs.getString(KEY_OAUTH_STATE, null)
+        set(value) {
+            if (value == null) {
+                prefs.edit().remove(KEY_OAUTH_STATE).apply()
+            } else {
+                prefs.edit().putString(KEY_OAUTH_STATE, value).apply()
+            }
+        }
+    
+    var selectedAiProvider: String
+        get() = prefs.getString(KEY_SELECTED_AI_PROVIDER, "gemini") ?: "gemini"
+        set(value) = prefs.edit().putString(KEY_SELECTED_AI_PROVIDER, value).apply()
 }

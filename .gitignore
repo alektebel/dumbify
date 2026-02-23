@@ -11,6 +11,8 @@ local.properties
 *.apk
 *.aab
 *.ap_
+# Allow APK files in releases directory
+!releases/*.apk
 *.dex
 *.class
 bin/
