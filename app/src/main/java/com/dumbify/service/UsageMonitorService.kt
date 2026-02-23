@@ -111,12 +111,14 @@ class UsageMonitorService : Service() {
         if (packageName == applicationContext.packageName) return // Ignore self
         
         currentSessionStart[packageName] = timestamp
-        appOpenCount[packageName] = (appOpenCount[packageName] ?: 0) + 1
+        appOpenCount.compute(packageName) { _, count -> (count ?: 0) + 1 }
         
         // Track recent apps
-        recentApps.add(0, packageName)
-        if (recentApps.size > 20) {
-            recentApps.removeAt(recentApps.size - 1)
+        synchronized(recentApps) {
+            recentApps.add(0, packageName)
+            if (recentApps.size > 20) {
+                recentApps.removeAt(recentApps.size - 1)
+            }
         }
         
         // AI analysis on app opening
@@ -128,7 +130,7 @@ class UsageMonitorService : Service() {
     private fun handleAppClosed(packageName: String, timestamp: Long) {
         currentSessionStart[packageName]?.let { startTime ->
             val sessionDuration = timestamp - startTime
-            dailyUsage[packageName] = (dailyUsage[packageName] ?: 0) + sessionDuration
+            dailyUsage.compute(packageName) { _, usage -> (usage ?: 0) + sessionDuration }
             currentSessionStart.remove(packageName)
         }
     }
@@ -170,10 +172,11 @@ class UsageMonitorService : Service() {
                 // Only analyze if user is spending too much time
                 val usageMinutes = usageData.usageTimeMillis / 60000
                 if (usageMinutes > 10 && !usageData.isProductive) {
+                    val recentAppsCopy = synchronized(recentApps) { recentApps.take(10) }
                     val analysis = aiAnalyzer.analyzeUsagePattern(
                         appName,
                         usageData,
-                        recentApps.take(10)
+                        recentAppsCopy
                     )
                     
                     if (analysis.contains("problematic", ignoreCase = true) ||
@@ -268,7 +271,9 @@ class UsageMonitorService : Service() {
                 
                 dailyUsage.clear()
                 appOpenCount.clear()
-                recentApps.clear()
+                synchronized(recentApps) {
+                    recentApps.clear()
+                }
             }
         }
     }

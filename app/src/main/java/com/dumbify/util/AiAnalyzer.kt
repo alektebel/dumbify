@@ -9,13 +9,15 @@ import com.dumbify.repository.AppConfigRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class AiAnalyzer(private val context: Context) {
+class AiAnalyzer(context: Context) {
     
-    private val repository = AppConfigRepository(context)
+    // Use application context to avoid memory leaks
+    private val appContext = context.applicationContext
+    private val repository = AppConfigRepository(appContext)
     
     // Get the appropriate AI provider based on user selection
     private val provider by lazy {
-        AiProviderFactory.createProvider(context)
+        AiProviderFactory.createProvider(appContext)
     }
     
     companion object {
@@ -23,11 +25,10 @@ class AiAnalyzer(private val context: Context) {
     }
     
     /**
-     * Sets the Gemini API key (for backwards compatibility)
+     * Sets the Gemini API key
      */
     fun setApiKey(key: String) {
-        val prefs = context.getSharedPreferences("dumbify_prefs", Context.MODE_PRIVATE)
-        prefs.edit().putString("gemini_api_key", key).apply()
+        repository.geminiApiKey = key
     }
     
     /**

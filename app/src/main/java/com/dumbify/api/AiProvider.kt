@@ -33,12 +33,14 @@ interface AiProvider {
 /**
  * Gemini AI provider using Google's Generative AI SDK
  */
-class GeminiProvider(private val context: Context) : AiProvider {
+class GeminiProvider(context: Context) : AiProvider {
     
-    private val repository = AppConfigRepository(context)
+    // Use application context to avoid memory leaks
+    private val appContext = context.applicationContext
+    private val repository = AppConfigRepository(appContext)
     
     private val model by lazy {
-        val apiKey = repository.prefs.getString("gemini_api_key", "") ?: ""
+        val apiKey = repository.geminiApiKey ?: ""
         GenerativeModel(
             modelName = "gemini-pro",
             apiKey = apiKey
@@ -67,7 +69,7 @@ class GeminiProvider(private val context: Context) : AiProvider {
     }
     
     override fun isConfigured(): Boolean {
-        val apiKey = repository.prefs.getString("gemini_api_key", "") ?: ""
+        val apiKey = repository.geminiApiKey ?: ""
         return apiKey.isNotEmpty()
     }
     
@@ -77,9 +79,11 @@ class GeminiProvider(private val context: Context) : AiProvider {
 /**
  * GitHub Models AI provider using GitHub Copilot Pro subscription
  */
-class GitHubModelsProvider(private val context: Context) : AiProvider {
+class GitHubModelsProvider(context: Context) : AiProvider {
     
-    private val repository = AppConfigRepository(context)
+    // Use application context to avoid memory leaks
+    private val appContext = context.applicationContext
+    private val repository = AppConfigRepository(appContext)
     
     private val client by lazy {
         val token = repository.githubAccessToken ?: ""

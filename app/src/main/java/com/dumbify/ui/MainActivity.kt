@@ -11,6 +11,7 @@ import android.widget.Button
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.dumbify.R
@@ -32,8 +33,26 @@ class MainActivity : AppCompatActivity() {
     private lateinit var settingsButton: Button
     private lateinit var statsButton: Button
     
+    private val vpnPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val intent = Intent(this, DnsFilterService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+            repository.isDnsFilterEnabled = true
+            updateStatus()
+        } else {
+            dnsFilterSwitch.isChecked = false
+            Toast.makeText(this, "VPN permission denied", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
     companion object {
-        private const val VPN_REQUEST_CODE = 100
+        // VPN_REQUEST_CODE no longer needed with Activity Result API
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -184,9 +203,17 @@ class MainActivity : AppCompatActivity() {
     private fun startDnsFilter() {
         val intent = VpnService.prepare(this)
         if (intent != null) {
-            startActivityForResult(intent, VPN_REQUEST_CODE)
+            vpnPermissionLauncher.launch(intent)
         } else {
-            onActivityResult(VPN_REQUEST_CODE, RESULT_OK, null)
+            // VPN permission already granted
+            val serviceIntent = Intent(this, DnsFilterService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+            repository.isDnsFilterEnabled = true
+            updateStatus()
         }
     }
     
@@ -197,26 +224,6 @@ class MainActivity : AppCompatActivity() {
         startService(intent)
         repository.isDnsFilterEnabled = false
         updateStatus()
-    }
-    
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        
-        if (requestCode == VPN_REQUEST_CODE) {
-            if (resultCode == RESULT_OK) {
-                val intent = Intent(this, DnsFilterService::class.java)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(intent)
-                } else {
-                    startService(intent)
-                }
-                repository.isDnsFilterEnabled = true
-                updateStatus()
-            } else {
-                dnsFilterSwitch.isChecked = false
-                Toast.makeText(this, "VPN permission denied", Toast.LENGTH_SHORT).show()
-            }
-        }
     }
     
     private fun updateStatus() {

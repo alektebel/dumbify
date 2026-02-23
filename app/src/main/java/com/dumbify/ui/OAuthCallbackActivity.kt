@@ -10,8 +10,9 @@ import com.dumbify.auth.GitHubOAuthManager
 import com.dumbify.auth.OAuthResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * Handles OAuth callback from GitHub
@@ -23,7 +24,11 @@ import kotlinx.coroutines.withContext
  */
 class OAuthCallbackActivity : AppCompatActivity() {
     
-    private lateinit var oauthManager: GitHubOAuthManager
+    // Use lazy initialization to avoid lateinit issues
+    private val oauthManager by lazy { GitHubOAuthManager(this) }
+    
+    // Properly managed coroutine scope
+    private val activityScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     
     companion object {
         private const val TAG = "OAuthCallbackActivity"
@@ -32,8 +37,6 @@ class OAuthCallbackActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        oauthManager = GitHubOAuthManager(this)
-        
         // Handle the OAuth callback
         handleOAuthCallback(intent)
     }
@@ -41,6 +44,12 @@ class OAuthCallbackActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleOAuthCallback(intent)
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        // Cancel coroutines to prevent leaks
+        activityScope.cancel()
     }
     
     private fun handleOAuthCallback(intent: Intent?) {
@@ -89,41 +98,37 @@ class OAuthCallbackActivity : AppCompatActivity() {
     }
     
     private fun exchangeCodeForToken(code: String) {
-        CoroutineScope(Dispatchers.Main).launch {
+        activityScope.launch {
             try {
                 Log.d(TAG, "Exchanging authorization code for access token...")
                 
                 val result = oauthManager.exchangeCodeForToken(code)
                 
-                withContext(Dispatchers.Main) {
-                    when (result) {
-                        is OAuthResult.Success -> {
-                            Log.i(TAG, "Successfully authenticated with GitHub")
-                            Toast.makeText(
-                                this@OAuthCallbackActivity,
-                                "Successfully connected to GitHub!",
-                                Toast.LENGTH_LONG
-                            ).show()
-                            
-                            // Navigate back to settings
-                            navigateToSettings()
-                        }
+                when (result) {
+                    is OAuthResult.Success -> {
+                        Log.i(TAG, "Successfully authenticated with GitHub")
+                        Toast.makeText(
+                            this@OAuthCallbackActivity,
+                            "Successfully connected to GitHub!",
+                            Toast.LENGTH_LONG
+                        ).show()
                         
-                        is OAuthResult.Error -> {
-                            Log.e(TAG, "Token exchange failed: ${result.message}")
-                            showError("Authentication failed: ${result.message}")
-                        }
+                        // Navigate back to settings
+                        navigateToSettings()
                     }
                     
-                    finish()
+                    is OAuthResult.Error -> {
+                        Log.e(TAG, "Token exchange failed: ${result.message}")
+                        showError("Authentication failed: ${result.message}")
+                    }
                 }
+                
+                finish()
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Error during token exchange", e)
-                withContext(Dispatchers.Main) {
-                    showError("Unexpected error: ${e.message}")
-                    finish()
-                }
+                showError("Unexpected error: ${e.message}")
+                finish()
             }
         }
     }

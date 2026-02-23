@@ -77,28 +77,28 @@ class GitHubModelsClient(private val accessToken: String) {
                 .addHeader("Content-Type", "application/json")
                 .build()
             
-            val response = httpClient.newCall(request).execute()
-            val responseBody = response.body?.string()
-            
-            if (!response.isSuccessful) {
-                Log.e(TAG, "GitHub Models API error: ${response.code} - $responseBody")
-                throw IOException("API request failed: ${response.code}")
+            // Properly close response using .use {}
+            httpClient.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
+                
+                if (!response.isSuccessful) {
+                    Log.e(TAG, "GitHub Models API error: ${response.code} - $responseBody")
+                    throw IOException("API request failed: ${response.code}")
+                }
+                
+                if (responseBody == null) {
+                    throw IOException("Empty response from API")
+                }
+                
+                val chatResponse = gson.fromJson(responseBody, ChatResponse::class.java)
+                    ?: throw IOException("Failed to parse response")
+                    
+                val content = chatResponse.choices.firstOrNull()?.message?.content
+                    ?: throw IOException("No content in API response")
+                
+                Log.d(TAG, "Successfully received response from $model")
+                content
             }
-            
-            if (responseBody == null) {
-                throw IOException("Empty response from API")
-            }
-            
-            val chatResponse = gson.fromJson(responseBody, ChatResponse::class.java)
-            val content = chatResponse.choices.firstOrNull()?.message?.content
-            
-            if (content == null) {
-                Log.e(TAG, "No content in response: $responseBody")
-                throw IOException("No content in API response")
-            }
-            
-            Log.d(TAG, "Successfully received response from $model")
-            content
             
         } catch (e: IOException) {
             Log.e(TAG, "Network error communicating with GitHub Models", e)

@@ -25,9 +25,11 @@ import java.io.IOException
  * 5. exchangeCodeForToken() - Exchanges code for access token
  * 6. Token is stored securely in AppConfigRepository
  */
-class GitHubOAuthManager(private val context: Context) {
+class GitHubOAuthManager(context: Context) {
     
-    private val repository = AppConfigRepository(context)
+    // Use application context to avoid memory leaks
+    private val appContext = context.applicationContext
+    private val repository = AppConfigRepository(appContext)
     private val httpClient = OkHttpClient()
     private val gson = Gson()
     
@@ -107,27 +109,29 @@ class GitHubOAuthManager(private val context: Context) {
                 .addHeader("Accept", "application/json")
                 .build()
             
-            val response = httpClient.newCall(request).execute()
-            val responseBody = response.body?.string()
-            
-            if (!response.isSuccessful || responseBody == null) {
-                Log.e(TAG, "Token exchange failed: ${response.code}")
-                return@withContext OAuthResult.Error("Failed to exchange code for token")
+            // Properly close response using .use {}
+            httpClient.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
+                
+                if (!response.isSuccessful || responseBody == null) {
+                    Log.e(TAG, "Token exchange failed: ${response.code}")
+                    return@withContext OAuthResult.Error("Failed to exchange code for token")
+                }
+                
+                val tokenResponse = gson.fromJson(responseBody, OAuthTokenResponse::class.java)
+                
+                if (tokenResponse.error != null) {
+                    Log.e(TAG, "OAuth error: ${tokenResponse.error} - ${tokenResponse.error_description}")
+                    return@withContext OAuthResult.Error(tokenResponse.error_description ?: tokenResponse.error)
+                }
+                
+                // Store the access token securely
+                repository.githubAccessToken = tokenResponse.access_token
+                repository.githubTokenScope = tokenResponse.scope
+                
+                Log.i(TAG, "Successfully obtained GitHub access token")
+                OAuthResult.Success(tokenResponse.access_token, tokenResponse.scope)
             }
-            
-            val tokenResponse = gson.fromJson(responseBody, OAuthTokenResponse::class.java)
-            
-            if (tokenResponse.error != null) {
-                Log.e(TAG, "OAuth error: ${tokenResponse.error} - ${tokenResponse.error_description}")
-                return@withContext OAuthResult.Error(tokenResponse.error_description ?: tokenResponse.error)
-            }
-            
-            // Store the access token securely
-            repository.githubAccessToken = tokenResponse.access_token
-            repository.githubTokenScope = tokenResponse.scope
-            
-            Log.i(TAG, "Successfully obtained GitHub access token")
-            OAuthResult.Success(tokenResponse.access_token, tokenResponse.scope)
             
         } catch (e: IOException) {
             Log.e(TAG, "Network error during token exchange", e)

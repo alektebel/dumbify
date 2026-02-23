@@ -25,7 +25,7 @@ class DnsFilterService : VpnService() {
     private var vpnInterface: ParcelFileDescriptor? = null
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private lateinit var repository: AppConfigRepository
-    private var isRunning = false
+    @Volatile private var isRunning = false
     
     companion object {
         private const val VPN_ADDRESS = "10.0.0.2"
@@ -89,8 +89,6 @@ class DnsFilterService : VpnService() {
     
     private suspend fun handlePackets() {
         val vpn = vpnInterface ?: return
-        val inputStream = FileInputStream(vpn.fileDescriptor)
-        val outputStream = FileOutputStream(vpn.fileDescriptor)
         
         val buffer = ByteBuffer.allocate(32767)
         val blockedDomains = repository.getBlockedDomains()
@@ -100,30 +98,34 @@ class DnsFilterService : VpnService() {
         
         withContext(Dispatchers.IO) {
             try {
-                while (isActive && isRunning) {
-                    buffer.clear()
-                    val length = inputStream.read(buffer.array())
-                    
-                    if (length > 0) {
-                        buffer.limit(length)
-                        
-                        // Parse DNS query
-                        val packet = buffer.array().copyOf(length)
-                        val isDnsQuery = isDnsPacket(packet)
-                        
-                        if (isDnsQuery) {
-                            val domain = extractDomain(packet)
+                FileInputStream(vpn.fileDescriptor).use { inputStream ->
+                    FileOutputStream(vpn.fileDescriptor).use { outputStream ->
+                        while (isActive && isRunning) {
+                            buffer.clear()
+                            val length = inputStream.read(buffer.array())
                             
-                            if (domain != null && isBlocked(domain, blockedDomains)) {
-                                // Send blocked response
-                                val blockedResponse = createBlockedDnsResponse(packet)
-                                outputStream.write(blockedResponse)
-                                continue
+                            if (length > 0) {
+                                buffer.limit(length)
+                                
+                                // Parse DNS query
+                                val packet = buffer.array().copyOf(length)
+                                val isDnsQuery = isDnsPacket(packet)
+                                
+                                if (isDnsQuery) {
+                                    val domain = extractDomain(packet)
+                                    
+                                    if (domain != null && isBlocked(domain, blockedDomains)) {
+                                        // Send blocked response
+                                        val blockedResponse = createBlockedDnsResponse(packet)
+                                        outputStream.write(blockedResponse)
+                                        continue
+                                    }
+                                }
+                                
+                                // Forward legitimate packets
+                                forwardPacket(packet, outputStream)
                             }
                         }
-                        
-                        // Forward legitimate packets
-                        forwardPacket(packet, outputStream)
                     }
                 }
             } catch (e: Exception) {

@@ -2,18 +2,50 @@ package com.dumbify.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import com.dumbify.model.AppCategory
 import com.dumbify.model.AppConfig
 import com.dumbify.model.BlockedDomain
 import com.google.gson.Gson
+import com.google.gson.JsonSyntaxException
 import com.google.gson.reflect.TypeToken
 
 class AppConfigRepository(context: Context) {
     
+    // Use application context to avoid memory leaks
+    private val appContext = context.applicationContext
+    
     // Make prefs internal so AiProvider can access it
     internal val prefs: SharedPreferences = 
-        context.getSharedPreferences("dumbify_prefs", Context.MODE_PRIVATE)
+        appContext.getSharedPreferences("dumbify_prefs", Context.MODE_PRIVATE)
+    
+    // Encrypted preferences for sensitive data (tokens, API keys)
+    private val encryptedPrefs: SharedPreferences by lazy {
+        try {
+            val masterKey = MasterKey.Builder(appContext)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+
+            EncryptedSharedPreferences.create(
+                appContext,
+                "dumbify_secure_prefs",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create encrypted preferences, falling back to regular", e)
+            // Fallback to regular SharedPreferences if encryption fails
+            appContext.getSharedPreferences("dumbify_secure_prefs_fallback", Context.MODE_PRIVATE)
+        }
+    }
+    
     private val gson = Gson()
+    
+    companion object {
+        private const val TAG = "AppConfigRepository"
     
     companion object {
         private const val KEY_APP_CONFIGS = "app_configs"
@@ -63,8 +95,13 @@ class AppConfigRepository(context: Context) {
     
     fun getAllAppConfigs(): Map<String, AppConfig> {
         val json = prefs.getString(KEY_APP_CONFIGS, null) ?: return getDefaultConfigs()
-        val type = object : TypeToken<Map<String, AppConfig>>() {}.type
-        return gson.fromJson(json, type)
+        return try {
+            val type = object : TypeToken<Map<String, AppConfig>>() {}.type
+            gson.fromJson<Map<String, AppConfig>>(json, type).toMap() // Return immutable copy
+        } catch (e: JsonSyntaxException) {
+            Log.e(TAG, "Failed to parse app configs, using defaults", e)
+            getDefaultConfigs()
+        }
     }
     
     private fun getDefaultConfigs(): Map<String, AppConfig> {
@@ -165,34 +202,45 @@ class AppConfigRepository(context: Context) {
         get() = prefs.getBoolean(KEY_DNS_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_DNS_ENABLED, value).apply()
     
-    // GitHub OAuth token storage
+    // GitHub OAuth token storage (encrypted)
     var githubAccessToken: String?
-        get() = prefs.getString(KEY_GITHUB_ACCESS_TOKEN, null)
+        get() = encryptedPrefs.getString(KEY_GITHUB_ACCESS_TOKEN, null)
         set(value) {
             if (value == null) {
-                prefs.edit().remove(KEY_GITHUB_ACCESS_TOKEN).apply()
+                encryptedPrefs.edit().remove(KEY_GITHUB_ACCESS_TOKEN).apply()
             } else {
-                prefs.edit().putString(KEY_GITHUB_ACCESS_TOKEN, value).apply()
+                encryptedPrefs.edit().putString(KEY_GITHUB_ACCESS_TOKEN, value).apply()
             }
         }
     
     var githubTokenScope: String?
-        get() = prefs.getString(KEY_GITHUB_TOKEN_SCOPE, null)
+        get() = encryptedPrefs.getString(KEY_GITHUB_TOKEN_SCOPE, null)
         set(value) {
             if (value == null) {
-                prefs.edit().remove(KEY_GITHUB_TOKEN_SCOPE).apply()
+                encryptedPrefs.edit().remove(KEY_GITHUB_TOKEN_SCOPE).apply()
             } else {
-                prefs.edit().putString(KEY_GITHUB_TOKEN_SCOPE, value).apply()
+                encryptedPrefs.edit().putString(KEY_GITHUB_TOKEN_SCOPE, value).apply()
             }
         }
     
     var oauthState: String?
-        get() = prefs.getString(KEY_OAUTH_STATE, null)
+        get() = encryptedPrefs.getString(KEY_OAUTH_STATE, null)
         set(value) {
             if (value == null) {
-                prefs.edit().remove(KEY_OAUTH_STATE).apply()
+                encryptedPrefs.edit().remove(KEY_OAUTH_STATE).apply()
             } else {
-                prefs.edit().putString(KEY_OAUTH_STATE, value).apply()
+                encryptedPrefs.edit().putString(KEY_OAUTH_STATE, value).apply()
+            }
+        }
+    
+    // Gemini API key storage (encrypted)
+    var geminiApiKey: String?
+        get() = encryptedPrefs.getString("gemini_api_key", null)
+        set(value) {
+            if (value == null) {
+                encryptedPrefs.edit().remove("gemini_api_key").apply()
+            } else {
+                encryptedPrefs.edit().putString("gemini_api_key", value).apply()
             }
         }
     
